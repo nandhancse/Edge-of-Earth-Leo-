@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edge of Earth - A New Frontier</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            color: #e0e0e0;
+            overflow-x: hidden;
+            background-color: transparent; /* Let the canvas handle the background */
+        }
+        #star-travel-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: -1;
+            background-color: #00041a; /* Deep space blue background */
+        }
+        #star-canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+        .hero-bg {
+            position: relative;
+            overflow: hidden; /* Important for the gravitational anomaly canvas */
+            background-image: linear-gradient(to bottom, rgba(0, 4, 26, 0.2), rgba(0, 4, 26, 1)), url('https://images.unsplash.com/photo-1506318137071-a_e063b4bec0?q=80&w=2000');
+            background-size: cover;
+            background-position: center;
+        }
+        #gravitational-anomaly-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            opacity: 1.0; /* Let the shader handle transparency */
+        }
+        .glass-panel {
+            background: rgba(10, 25, 47, 0.4); /* Reduced opacity for more transparency */
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .glow-button {
+            box-shadow: 0 0 8px #6366f1, 0 0 20px #6366f1; /* Made default glow stronger */
+            transition: all 0.3s ease;
+        }
+        .glow-button:hover {
+            box-shadow: 0 0 12px #818cf8, 0 0 30px #818cf8, 0 0 50px #818cf8; /* Made hover glow stronger */
+            transform: translateY(-2px);
+        }
+        #leoCanvas {
+            cursor: grab;
+        }
+        #leoCanvas:active {
+            cursor: grabbing;
+        }
+        .modal {
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+        .solution-section {
+            position: relative;
+            overflow: hidden;
+        }
+        .hologram-image {
+            position: absolute;
+            top: 15%;
+            left: 50%;
+            width: 60%;
+            max-width: 450px;
+            z-index: 0;
+            opacity: 0.7;
+            pointer-events: none;
+            filter: drop-shadow(0 0 25px #c7d2fe) brightness(1.2); /* Hologram glow effect */
+            animation: float 8s ease-in-out infinite;
+        }
+        @keyframes float {
+            0% { transform: translate(-50%, -2%); }
+            50% { transform: translate(-50%, 2%); }
+            100% { transform: translate(-50%, -2%); }
+        }
+        .tesseract-border {
+            position: relative;
+            overflow: hidden;
+        }
+        .tesseract-border::before, .tesseract-border::after {
+            content: '';
+            position: absolute;
+            width: 200%;
+            height: 200%;
+            top: -50%;
+            left: -50%;
+            z-index: -1;
+            background: conic-gradient(
+                transparent,
+                rgba(129, 140, 248, 0.5),
+                transparent 30%
+            );
+            animation: rotate 8s linear infinite;
+        }
+        .tesseract-border::after {
+            animation-delay: -4s;
+        }
+        @keyframes rotate {
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+        .legend-item {
+            cursor: pointer;
+            transition: opacity 0.3s ease;
+            opacity: 1;
+        }
+        .legend-item.inactive {
+            opacity: 0.4;
+        }
+        .legend-checkbox {
+            width: 14px;
+            height: 14px;
+            border: 1px solid #a5b4fc;
+            border-radius: 3px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.2s ease;
+            background-color: #6366f1;
+        }
+        .legend-item.inactive .legend-checkbox {
+            background-color: transparent;
+        }
+        .legend-checkbox::after {
+            content: '✔';
+            color: #e0e0e0;
+            font-size: 10px;
+            line-height: 1;
+            transition: opacity 0.2s ease;
+            opacity: 1;
+        }
+        .legend-item.inactive .legend-checkbox::after {
+            opacity: 0;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <div id="star-travel-bg"><canvas id="star-canvas"></canvas></div>
+
+    <!-- Header -->
+    <header class="fixed top-0 left-0 right-0 z-50 transition-all duration-300 glass-panel" id="header">
+        <div class="container mx-auto px-6 py-4 flex justify-between items-center">
+            <a href="#">
+                <h1 class="text-2xl font-bold tracking-wider text-white">
+                     <span class="text-indigo-400">EDGE</span> OF EARTH
+                </h1>
+            </a>
+            <nav class="hidden md:flex space-x-8 text-lg">
+                <a href="#opportunity" class="hover:text-indigo-400 transition">The Opportunity</a>
+                <a href="#solution" class="hover:text-indigo-400 transition">Our Solution</a>
+                <a href="#model" class="hover:text-indigo-400 transition">Business Model</a>
+                <a href="#interactive" class="hover:text-indigo-400 transition">LEO Map</a>
+            </nav>
+            <a href="#contact" class="hidden md:block bg-indigo-600 text-white font-bold py-2 px-6 rounded-lg glow-button">
+                Get Involved
+            </a>
+            <button id="mobile-menu-button" class="md:hidden text-white focus:outline-none">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
+            </button>
+        </div>
+        <!-- Mobile Menu -->
+        <div id="mobile-menu" class="hidden md:hidden px-6 pt-2 pb-4 space-y-2">
+             <a href="#opportunity" class="block hover:text-indigo-400 transition">The Opportunity</a>
+             <a href="#solution" class="block hover:text-indigo-400 transition">Our Solution</a>
+             <a href="#model" class="block hover:text-indigo-400 transition">Business Model</a>
+             <a href="#interactive" class="block hover:text-indigo-400 transition">LEO Map</a>
+             <a href="#contact" class="block mt-2 bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg text-center">Get Involved</a>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="min-h-screen flex items-center justify-center hero-bg">
+        <canvas id="gravitational-anomaly-canvas"></canvas>
+        <div class="text-center text-white px-4 z-10">
+            <h2 class="text-5xl md:text-7xl lg:text-8xl font-black uppercase tracking-widest">Explore the New Frontier</h2>
+            <p class="mt-4 text-lg md:text-2xl max-w-3xl mx-auto text-indigo-200">Building the orbital infrastructure for the next generation of technology.</p>
+            <div class="mt-10">
+                <a href="#interactive" class="bg-indigo-600 text-white font-bold py-4 px-10 rounded-lg text-xl glow-button">
+                    Explore Our Vision
+                </a>
+            </div>
+        </div>
+        <a href="#opportunity" class="absolute bottom-10 left-1/2 -translate-x-1/2 animate-bounce z-10">
+             <svg class="w-8 h-8 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+        </a>
+    </section>
+
+    <main class="container mx-auto px-6 py-20 space-y-32 relative z-10">
+        <!-- The Opportunity Section -->
+        <section id="opportunity" class="scroll-mt-20">
+            <div class="grid md:grid-cols-2 gap-12 items-center">
+                <div>
+                    <h2 class="text-4xl font-bold text-indigo-400 mb-4">The New Economic Frontier</h2>
+                    <p class="text-lg mb-6">Low Earth Orbit is bustling. Over 8,000 active satellites power our modern world, a number projected to exceed 100,000 by 2030. This exponential growth unlocks unprecedented opportunities in communication, Earth observation, and research.</p>
+                    <p class="text-lg">However, this rapid commercialization creates critical challenges: orbital congestion, the growing threat of space debris, and a lack of in-space infrastructure for maintenance and sustainability.</p>
+                </div>
+                <!-- Image 2.png linked here -->
+                <img src="no2.png" alt="Side view of the satellite" class="glass-panel rounded-2xl object-cover w-full h-full">
+            </div>
+        </section>
+
+        <!-- Our Solution Section -->
+        <section id="solution" class="scroll-mt-20 text-center solution-section py-12 px-4">
+             <!-- Image 1.png linked here -->
+             <img src="no1.png" alt="Guardian Spacecraft Hologram" class="hologram-image">
+             <div class="relative z-10">
+                <h2 class="text-4xl font-bold text-indigo-400 mb-4">Our In-Orbit Solution</h2>
+                <p class="text-xl max-w-4xl mx-auto mb-12">We provide a comprehensive suite of in-orbit services through our fleet of advanced, multi-purpose "Guardian" spacecraft, ensuring the long-term sustainability and profitability of LEO operations.</p>
+                <div class="grid md:grid-cols-3 gap-8 mt-12">
+                    <!-- Card 1: Debris Removal -->
+                    <div class="glass-panel p-8 rounded-2xl text-left transform hover:scale-105 transition-transform duration-300">
+                         <div class="text-indigo-400 mb-4"><svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></div>
+                        <h3 class="text-2xl font-bold mb-2">Active Debris Removal (ADR)</h3>
+                        <p>Our Guardians autonomously capture and de-orbit hazardous debris, clearing vital orbital pathways and protecting valuable assets. We turn risk into a manageable service.</p>
+                    </div>
+                    <!-- Card 2: Satellite Servicing -->
+                    <div class="glass-panel p-8 rounded-2xl text-left transform hover:scale-105 transition-transform duration-300">
+                         <div class="text-indigo-400 mb-4"><svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" /></svg></div>
+                        <h3 class="text-2xl font-bold mb-2">Satellite Servicing & Life Extension</h3>
+                        <p>We offer on-demand refueling, component repair/upgrades, and orbital repositioning. Extend the operational life of your constellations and maximize your return on investment.</p>
+                    </div>
+                    <!-- Card 3: Situational Awareness -->
+                    <div class="glass-panel p-8 rounded-2xl text-left transform hover:scale-105 transition-transform duration-300">
+                         <div class="text-indigo-400 mb-4"><svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg></div>
+                        <h3 class="text-2xl font-bold mb-2">Orbital Situational Awareness (OSA)</h3>
+                        <p>Our network provides a real-time, high-fidelity data stream of orbital traffic and threats. Subscribe to our data-as-a-service platform for unparalleled insight and collision avoidance.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Business Model Section -->
+        <section id="model" class="scroll-mt-20">
+            <h2 class="text-4xl font-bold text-indigo-400 mb-12 text-center">A Scalable & Sustainable Model</h2>
+            <div class="grid md:grid-cols-2 gap-12 items-center">
+                <div class="space-y-8">
+                    <div>
+                        <h3 class="text-2xl font-bold mb-2">Phase 1: Foundation (Years 1-3)</h3>
+                        <p>Secure anchor clients (government agencies, large constellation operators) for high-priority debris removal. Launch first two Guardian spacecraft. Focus: <span class="text-indigo-300 font-semibold">Service-as-a-Fee</span>.</p>
+                    </div>
+                    <div>
+                        <h3 class="text-2xl font-bold mb-2">Phase 2: Expansion (Years 4-7)</h3>
+                        <p>Expand the Guardian fleet to 10 spacecraft. Introduce satellite life-extension services and launch the Orbital Situational Awareness data platform. Focus: <span class="text-indigo-300 font-semibold">Subscription & Tiered Pricing</span>.</p>
+                    </div>
+                    <div>
+                        <h3 class="text-2xl font-bold mb-2">Phase 3: Market Leadership (Years 8+)</h3>
+                        <p>Achieve near-continuous orbital coverage. Introduce advanced capabilities like in-orbit assembly and recycling. Establish a marketplace for in-orbit resources. Focus: <span class="text-indigo-300 font-semibold">Platform & Ecosystem Revenue</span>.</p>
+                    </div>
+                </div>
+                <!-- Image 3.png linked here -->
+                <img src="no3.png" alt="Fabrication unit close-up" class="glass-panel rounded-2xl object-cover w-full h-full">
+            </div>
+        </section>
+
+        <!-- Interactive LEO Map Section -->
+        <section id="interactive" class="scroll-mt-20">
+            <h2 class="text-4xl font-bold text-indigo-400 mb-4 text-center">Interactive LEO Environment</h2>
+            <p class="text-xl max-w-4xl mx-auto mb-8 text-center">Explore the challenge of orbital congestion. Use the interactive legend to toggle object visibility and get a clearer view of the environment. You can also click and drag to rotate the map.</p>
+            <div id="canvas-container" class="relative w-full h-[400px] md:h-[600px] rounded-2xl glass-panel p-2">
+                <canvas id="leoCanvas"></canvas>
+                 <div class="absolute top-4 left-4 glass-panel p-3 rounded-lg text-sm">
+                    <strong>Legend:</strong>
+                    <div data-type="satellite" class="legend-item flex items-center mt-2">
+                        <div class="legend-checkbox"></div>
+                        <div class="w-3 h-3 rounded-full bg-blue-500 mr-2 ml-2"></div>Active Satellite
+                    </div>
+                    <div data-type="debris" class="legend-item flex items-center mt-1">
+                        <div class="legend-checkbox"></div>
+                        <div class="w-3 h-3 rounded-full bg-red-500 mr-2 ml-2"></div>Space Debris
+                    </div>
+                    <div data-type="guardian" class="legend-item flex items-center mt-1">
+                        <div class="legend-checkbox"></div>
+                        <div class="w-3 h-3 rounded-full bg-indigo-500 mr-2 ml-2"></div>Guardian Craft
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Contact Section -->
+        <section id="contact" class="scroll-mt-20">
+            <div class="glass-panel rounded-2xl p-12 max-w-4xl mx-auto">
+                <h2 class="text-4xl font-bold text-indigo-400 mb-4 text-center">Join Us in Building a Sustainable Future</h2>
+                <p class="text-xl text-center mb-8">Whether you're an investor, engineer, or potential partner, we want to hear from you. Let's secure the future of the space economy, together.</p>
+                <form id="contact-form">
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <input type="text" placeholder="Your Name" required class="w-full bg-transparent border-2 border-indigo-400 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-indigo-300">
+                        <input type="email" placeholder="Your Email" required class="w-full bg-transparent border-2 border-indigo-400 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-indigo-300">
+                    </div>
+                    <textarea placeholder="Your Message" rows="5" required class="w-full bg-transparent border-2 border-indigo-400 rounded-lg p-3 mt-6 focus:outline-none focus:ring-2 focus:ring-indigo-300"></textarea>
+                    <div class="text-center mt-6">
+                         <button type="submit" class="bg-indigo-600 text-white font-bold py-3 px-10 rounded-lg text-lg glow-button">Send Message</button>
+                    </div>
+                </form>
+                <div id="form-success" class="hidden text-center mt-6 p-4 rounded-lg bg-green-500/20 text-green-300">
+                    Thank you! Your message has been sent. We'll be in touch soon.
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-indigo-900 mt-20 relative z-10">
+        <div class="container mx-auto px-6 py-8 text-center text-gray-400">
+            <p>&copy; 2025 Edge of Earth. All rights reserved.</p>
+            <p class="text-sm mt-2">A conceptual prototype for the Joint Agency Satellite Division Hackathon.</p>
+        </div>
+    </footer>
+    
+    <!-- Modal -->
+    <div id="info-modal" class="modal fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70 opacity-0 pointer-events-none transform scale-95">
+        <div id="modal-content" class="glass-panel p-8 rounded-2xl w-full max-w-md text-left relative tesseract-border">
+             <button id="close-modal" class="absolute top-4 right-4 text-gray-400 hover:text-white z-10">&times;</button>
+             <h3 id="modal-title" class="text-2xl font-bold mb-4 text-indigo-400">Object Details</h3>
+             <p id="modal-type"></p>
+             <p id="modal-id"></p>
+             <p id="modal-info" class="mt-4"></p>
+        </div>
+    </div>
+
+
+    <script type="module">
+        document.addEventListener('DOMContentLoaded', () => {
+
+            // --- Gravitational Anomaly Effect ---
+            const anomalyCanvas = document.getElementById('gravitational-anomaly-canvas');
+            if (anomalyCanvas) {
+                const scene = new THREE.Scene();
+                const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+                const renderer = new THREE.WebGLRenderer({ canvas: anomalyCanvas, alpha: true });
+                renderer.setSize(window.innerWidth, window.innerHeight);
+
+                const geometry = new THREE.PlaneGeometry(20, 20, 100, 100);
+                const material = new THREE.ShaderMaterial({
+                    uniforms: { time: { value: 1.0 } },
+                    vertexShader: `
+                        uniform float time;
+                        varying vec2 vUv;
+                        void main() {
+                            vUv = uv;
+                            vec3 pos = position;
+                            float dist = distance(uv, vec2(0.5));
+                            float falloff = pow(1.0 - dist, 2.0);
+                            pos.z += sin(dist * 20.0 - time * 3.0) * falloff * 0.8;
+                            gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+                        }
+                    `,
+                    fragmentShader: `
+                        uniform float time;
+                        varying vec2 vUv;
+                        void main() {
+                            float dist = distance(vUv, vec2(0.5));
+                            vec3 color = vec3(
+                                0.5 + 0.5 * sin(time * 2.0 + vUv.x * 5.0),
+                                0.5 + 0.5 * sin(time * 2.5 + vUv.y * 5.0),
+                                0.5 + 0.5 * cos(time * 3.0 + dist * 8.0)
+                            );
+                            float intensity = pow(1.0 - dist, 1.5) * 0.8;
+                            intensity *= 0.5 + 0.5 * sin(dist * 25.0 - time * 4.0);
+                            gl_FragColor = vec4(color * intensity, intensity);
+                        }
+                    `,
+                    wireframe: true,
+                    transparent: true
+                });
+                const plane = new THREE.Mesh(geometry, material);
+                scene.add(plane);
+                camera.position.z = 5;
+
+                function animateAnomaly() {
+                    requestAnimationFrame(animateAnomaly);
+                    material.uniforms.time.value += 0.02;
+                    plane.rotation.z += 0.001;
+                    renderer.render(scene, camera);
+                }
+                animateAnomaly();
+                 window.addEventListener('resize', () => {
+                    renderer.setSize(window.innerWidth, window.innerHeight);
+                    camera.aspect = window.innerWidth / window.innerHeight;
+                    camera.updateProjectionMatrix();
+                });
+            }
+
+            // --- Star Travel Animation ---
+            const starCanvas = document.getElementById('star-canvas');
+            if (starCanvas) {
+                const ctx = starCanvas.getContext('2d');
+                let stars = [];
+                let scrollVelocity = 0;
+                let lastScrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                const numStars = 500;
+
+                const setupStars = () => {
+                    starCanvas.width = window.innerWidth;
+                    starCanvas.height = window.innerHeight;
+                    stars = [];
+                    for (let i = 0; i < numStars; i++) {
+                        stars.push({
+                            x: Math.random() * starCanvas.width,
+                            y: Math.random() * starCanvas.height,
+                            z: Math.random() * 3 + 0.5 
+                        });
+                    }
+                };
+
+                const drawStars = () => {
+                    if(!ctx) return;
+                    ctx.clearRect(0, 0, starCanvas.width, starCanvas.height);
+                    scrollVelocity *= 0.92; 
+
+                    stars.forEach(star => {
+                        star.y -= scrollVelocity * star.z;
+                        const tailLength = scrollVelocity * star.z * 3;
+                        ctx.beginPath();
+                        ctx.moveTo(star.x, star.y);
+                        ctx.lineTo(star.x, star.y + tailLength);
+                        
+                        ctx.strokeStyle = `rgba(255, 255, 255, ${0.5 + star.z / 4})`;
+                        ctx.lineWidth = 1 + (star.z / 2.5);
+                        ctx.stroke();
+
+                        if (star.y < -Math.abs(tailLength)) {
+                            star.y = starCanvas.height; star.x = Math.random() * starCanvas.width;
+                        } else if (star.y > starCanvas.height + Math.abs(tailLength)) {
+                            star.y = 0; star.x = Math.random() * starCanvas.width;
+                        }
+                    });
+                    requestAnimationFrame(drawStars);
+                };
+
+                window.addEventListener('scroll', () => {
+                    const st = window.pageYOffset || document.documentElement.scrollTop;
+                    const scrollDelta = st - lastScrollTop;
+                    scrollVelocity += scrollDelta * 0.15;
+                    scrollVelocity = Math.max(-35, Math.min(35, scrollVelocity)); 
+                    lastScrollTop = st <= 0 ? 0 : st;
+                }, { passive: true });
+
+                window.addEventListener('resize', setupStars);
+                setupStars();
+                drawStars();
+            }
+
+            // --- Mobile Menu ---
+            const mobileMenuButton = document.getElementById('mobile-menu-button');
+            const mobileMenu = document.getElementById('mobile-menu');
+            if (mobileMenuButton && mobileMenu) {
+                mobileMenuButton.addEventListener('click', () => mobileMenu.classList.toggle('hidden'));
+            }
+
+            // --- Header scroll effect ---
+            const header = document.getElementById('header');
+            if (header) {
+                window.addEventListener('scroll', () => {
+                    header.classList.toggle('py-2', window.scrollY > 50);
+                    header.classList.toggle('py-4', window.scrollY <= 50);
+                });
+            }
+            
+            // --- Contact Form ---
+            const contactForm = document.getElementById('contact-form');
+            const formSuccess = document.getElementById('form-success');
+            if (contactForm && formSuccess) {
+                contactForm.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    contactForm.style.display = 'none';
+                    formSuccess.style.display = 'block';
+                });
+            }
+
+            // --- Three.js Interactive LEO Map ---
+            let scene, camera, renderer, earth, INTERSECTED;
+            const objects = [];
+            const raycaster = new THREE.Raycaster();
+            const mouse = new THREE.Vector2();
+            
+            const canvasContainer = document.getElementById('canvas-container');
+            const leoCanvas = document.getElementById('leoCanvas');
+            
+            if (!canvasContainer || !leoCanvas) {
+                 console.error("Interactive canvas not found. Halting 3D visualization.");
+                 return;
+            }
+
+            let isMouseDown = false;
+            let hasDragged = false;
+            let startMousePos = { x: 0, y: 0 };
+            let previousMousePos = { x: 0, y: 0 };
+            
+            function initLeoMap() {
+                scene = new THREE.Scene();
+                camera = new THREE.PerspectiveCamera(75, canvasContainer.clientWidth / canvasContainer.clientHeight, 0.1, 1000);
+                camera.position.z = 15;
+                renderer = new THREE.WebGLRenderer({ canvas: leoCanvas, antialias: true, alpha: true });
+                renderer.setSize(canvasContainer.clientWidth, canvasContainer.clientHeight);
+                renderer.setPixelRatio(window.devicePixelRatio);
+                
+                const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+                scene.add(ambientLight);
+                const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+                directionalLight.position.set(5, 3, 5);
+                scene.add(directionalLight);
+
+                const earthGeometry = new THREE.SphereGeometry(5, 64, 64);
+                const earthMaterial = new THREE.MeshPhongMaterial({
+                    color: 0x6366f1, shininess: 5, transparent: true, opacity: 0.5
+                });
+                earth = new THREE.Mesh(earthGeometry, earthMaterial);
+                scene.add(earth);
+                
+                const cloudGeometry = new THREE.SphereGeometry(5.1, 64, 64);
+                const cloudMaterial = new THREE.MeshPhongMaterial({
+                    color: 0xffffff, transparent: true, opacity: 0.1
+                });
+                scene.add(new THREE.Mesh(cloudGeometry, cloudMaterial));
+
+                createOrbitalObject(200, 'satellite', 0x3b82f6, 0.08); // Corresponds to bg-blue-500
+                createOrbitalObject(500, 'debris', 0xef4444, 0.05);  // Corresponds to bg-red-500
+                createOrbitalObject(10, 'guardian', 0x6366f1, 0.12); // Corresponds to bg-indigo-500
+
+                // Legend Functionality
+                const legendItems = document.querySelectorAll('.legend-item');
+                const visibilityState = { satellite: true, debris: true, guardian: true };
+
+                function updateObjectVisibility() {
+                    objects.forEach(obj => {
+                        obj.visible = visibilityState[obj.userData.type];
+                    });
+                }
+
+                legendItems.forEach(item => {
+                    item.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const type = item.dataset.type;
+                        if (type) {
+                            visibilityState[type] = !visibilityState[type];
+                            item.classList.toggle('inactive');
+                            updateObjectVisibility();
+                        }
+                    });
+                });
+
+
+                window.addEventListener('resize', onWindowResize, false);
+                leoCanvas.addEventListener('mousedown', onLeoMapMouseDown, false);
+                window.addEventListener('mousemove', onLeoMapMouseMove, false);
+                window.addEventListener('mouseup', onLeoMapMouseUp, false);
+                
+                const closeModalButton = document.getElementById('close-modal');
+                const infoModal = document.getElementById('info-modal');
+                if (closeModalButton) closeModalButton.addEventListener('click', hideModal);
+                if (infoModal) infoModal.addEventListener('click', (e) => { if (e.target.id === 'info-modal') hideModal(); });
+                animateLeoMap();
+            }
+
+            function createOrbitalObject(count, type, color, size) {
+                const geometry = new THREE.SphereGeometry(size, 8, 8);
+                for (let i = 0; i < count; i++) {
+                    const material = new THREE.MeshPhongMaterial({ color, emissive: color, emissiveIntensity: 0.3 });
+                    const object = new THREE.Mesh(geometry, material);
+                    const orbitRadius = 6.5 + Math.random() * 2;
+                    const angle = Math.random() * Math.PI * 2;
+                    const inclination = (Math.random() - 0.5) * Math.PI * 0.5;
+                    object.userData = { type, id: `${type.charAt(0).toUpperCase() + type.slice(1)}-${i + 1}`, orbitRadius, angle, speed: (Math.random() * 0.2 + 0.1) * 0.01, inclination };
+                    objects.push(object);
+                    scene.add(object);
+                }
+            }
+            
+            function onLeoMapMouseDown(event) {
+                if (event.target !== leoCanvas) return;
+                isMouseDown = true;
+                hasDragged = false;
+                startMousePos.x = event.clientX;
+                startMousePos.y = event.clientY;
+                previousMousePos.x = event.clientX;
+                previousMousePos.y = event.clientY;
+            }
+
+            function onLeoMapMouseMove(event) {
+                if (!isMouseDown) return;
+
+                const deltaX = event.clientX - previousMousePos.x;
+                const deltaY = event.clientY - previousMousePos.y;
+                
+                if (Math.abs(event.clientX - startMousePos.x) > 5 || Math.abs(event.clientY - startMousePos.y) > 5) {
+                    hasDragged = true;
+                }
+                
+                if(hasDragged) {
+                    scene.rotation.y += deltaX * 0.005;
+                    scene.rotation.x += deltaY * 0.005;
+                }
+                
+                previousMousePos.x = event.clientX;
+                previousMousePos.y = event.clientY;
+            }
+
+            function onLeoMapMouseUp(event) {
+                if (!isMouseDown) return;
+                
+                if (!hasDragged) {
+                    const rect = renderer.domElement.getBoundingClientRect();
+                    mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+                    mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+                    
+                    raycaster.setFromCamera(mouse, camera);
+                    const intersects = raycaster.intersectObjects(objects.filter(o => o.visible));
+                    if (intersects.length > 0) {
+                        showModal(intersects[0].object.userData);
+                    }
+                }
+                isMouseDown = false;
+                hasDragged = false;
+            }
+
+            function onWindowResize() {
+                if (camera && renderer && canvasContainer) {
+                    camera.aspect = canvasContainer.clientWidth / canvasContainer.clientHeight;
+                    camera.updateProjectionMatrix();
+                    renderer.setSize(canvasContainer.clientWidth, canvasContainer.clientHeight);
+                }
+            }
+            
+            const modal = document.getElementById('info-modal');
+            function showModal(data) {
+                if (!modal) return;
+                document.getElementById('modal-title').textContent = data.id;
+                document.getElementById('modal-type').textContent = `Type: ${data.type.charAt(0).toUpperCase() + data.slice(1)}`;
+                document.getElementById('modal-id').textContent = `Orbit Radius: ${data.orbitRadius.toFixed(2)} Earth Radii`;
+                let infoText = "";
+                if (data.type === 'satellite') infoText = "An active satellite providing services like communication or Earth observation. Critical asset.";
+                else if (data.type === 'debris') infoText = "A non-operational object posing a collision risk to active satellites. A target for removal.";
+                else if (data.type === 'guardian') infoText = "An Orbital Fabricators 'Guardian' spacecraft, capable of debris removal and satellite servicing.";
+                document.getElementById('modal-info').textContent = infoText;
+                modal.classList.remove('opacity-0', 'pointer-events-none', 'scale-95');
+            }
+            function hideModal() {
+                if (modal) modal.classList.add('opacity-0', 'pointer-events-none', 'scale-95');
+            }
+
+            function animateLeoMap() {
+                requestAnimationFrame(animateLeoMap);
+                objects.forEach(obj => {
+                    obj.userData.angle += obj.userData.speed;
+                    const r = obj.userData.orbitRadius, angle = obj.userData.angle, inc = obj.userData.inclination;
+                    const y = r * Math.sin(inc);
+                    const effectiveRadius = r * Math.cos(inc);
+                    obj.position.x = effectiveRadius * Math.cos(angle);
+                    obj.position.y = y;
+                    obj.position.z = effectiveRadius * Math.sin(angle);
+                });
+
+                if (earth) earth.rotation.y += 0.0005;
+                if(!isMouseDown) scene.rotation.y += 0.0002;
+                
+                const rect = renderer.domElement.getBoundingClientRect();
+                const hoverMouse = new THREE.Vector2();
+                hoverMouse.x = ((previousMousePos.x - rect.left) / rect.width) * 2 - 1;
+                hoverMouse.y = -((previousMousePos.y - rect.top) / rect.height) * 2 + 1;
+
+                if (!hasDragged && !isMouseDown) {
+                    raycaster.setFromCamera(hoverMouse, camera);
+                    const intersects = raycaster.intersectObjects(objects.filter(o => o.visible));
+                    if (intersects.length > 0) {
+                        leoCanvas.style.cursor = 'pointer';
+                        if (INTERSECTED !== intersects[0].object) {
+                            if (INTERSECTED) INTERSECTED.material.emissive.setHex(INTERSECTED.currentHex);
+                            INTERSECTED = intersects[0].object;
+                            INTERSECTED.currentHex = INTERSECTED.material.emissive.getHex();
+                            INTERSECTED.material.emissive.setHex(0xffffff);
+                        }
+                    } else {
+                        if (INTERSECTED) INTERSECTED.material.emissive.setHex(INTERSECTED.currentHex);
+                        leoCanvas.style.cursor = 'grab';
+                        INTERSECTED = null;
+                    }
+                } else if(isMouseDown && hasDragged) {
+                    leoCanvas.style.cursor = 'grabbing';
+                }
+                
+                if (renderer && scene && camera) renderer.render(scene, camera);
+            }
+            initLeoMap();
+        });
+    </script>
+</body>
+</html>
+
